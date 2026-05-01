@@ -26,3 +26,101 @@ def loc_constraints_ith
   (errs : BitVec 144)
   (i : ℕ) :=
   errs[i]! = any_loc_is locs i
+
+def loc_constraints_aux
+  (locs : Fin 11 → BitVec 8)
+  (errs : BitVec 144)
+  (c : ℕ) :=
+  match c with
+  | 0 => loc_constraints_ith locs errs 0
+  | c' + 1 =>
+    loc_constraints_ith locs errs c ∧
+    loc_constraints_aux locs errs c'
+
+def loc_order_constraints_aux
+  (locs : Fin 11 → BitVec 8)
+  (j : ℕ) :=
+  match j with
+  | 0 => locs 0 <= locs 1
+  | j' + 1 =>
+    locs (Fin.ofNat 11 j) <= locs (Fin.ofNat 11 (j + 1)) ∧
+    loc_order_constraints_aux locs j'
+
+def loc_order_constraints
+  (locs : Fin 11 → BitVec 8) :=
+  loc_order_constraints_aux locs 9
+
+def loc_constraints
+  (locs : Fin 11 → BitVec 8)
+  (errs : BitVec 144) :=
+  loc_order_constraints locs ∧
+  loc_constraints_aux locs errs 143
+
+def row_parity_constraint_aux
+  (errs : BitVec 144) (r : ℕ) (c : ℕ) :=
+  let k := 144 * r + c
+  match c with
+  | 0 => errs[c]! && HX[k]!
+  | c' + 1 => (errs[c]! && HX[k]!) ^^ row_parity_constraint_aux errs r c'
+
+def row_parity_constraint (errs : BitVec 144) (r : ℕ) :=
+  ¬(row_parity_constraint_aux errs r 143)
+
+def parity_constraints_aux (errs : BitVec 144) (r : ℕ) :=
+  match r with
+  | 0 => row_parity_constraint errs 0
+  | r' + 1 => row_parity_constraint errs r ∧ parity_constraints_aux errs r'
+
+def parity_constraints (errs : BitVec 144) :=
+  parity_constraints_aux errs 71
+
+def row_stabilizer_constraint_aux
+  (errs : BitVec 144) (r : ℕ) (c : ℕ) :=
+  let k := 144 * r + c
+  match c with
+  | 0 => (errs[c]! && N[k]!)
+  | c' + 1 => (errs[c]! && N[k]!) ^^ row_stabilizer_constraint_aux errs r c'
+
+def row_stabilizer_constraint (errs : BitVec 144) (r : ℕ) :=
+  row_stabilizer_constraint_aux errs r 143
+
+def stabilizer_constraints_aux
+  (errs : BitVec 144) (r : ℕ) :=
+  match r with
+  | 0 => row_stabilizer_constraint errs 0
+  | r' + 1 => row_stabilizer_constraint errs r' ∨
+      stabilizer_constraints_aux errs r'
+
+def stabilizer_constraints
+  (errs : BitVec 144) :=
+  stabilizer_constraints_aux errs 77
+
+set_option maxHeartbeats 0 in
+-- heavy unfolding
+lemma bb144_test
+  (locs : Fin 11 → BitVec 8)
+  (errs : BitVec 144) :
+  ¬ (
+    loc_constraints locs errs /\
+    parity_constraints errs /\
+    stabilizer_constraints errs)
+  := by
+  simp (maxSteps := 9999999) only [loc_constraints, loc_order_constraints,
+    loc_order_constraints_aux, loc_constraints_aux, loc_constraints_ith,
+    any_loc_is, any_loc_is_aux,
+    Nat.lt_add_one, getElem!_pos, Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, eq_iff_iff,
+    Nat.reduceLT, Nat.cast_one, Nat.zero_lt_succ,
+    Nat.cast_zero, parity_constraints, parity_constraints_aux, row_parity_constraint,
+    row_parity_constraint_aux,
+    Nat.reduceMul, HX, Nat.reduceAdd, BitVec.reduceGetElem, Bool.and_false, Bool.and_true,
+    mul_one, mul_zero, add_zero,
+    bne_self_eq_false, Bool.bne_false, Bool.false_bne, bne_iff_ne, ne_eq, Decidable.not_not,
+    zero_add,
+    stabilizer_constraints, stabilizer_constraints_aux, row_stabilizer_constraint,
+    row_stabilizer_constraint_aux, N,
+    or_self, decide_not, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not,
+    Bool.decide_or, Bool.or_eq_true,
+    not_and, not_or, and_imp]
+  bv_decide? (config := { timeout := 60 })
+
+#print axioms bb144_test

@@ -26,9 +26,14 @@ def loc_constraints_aux
     loc_constraints_ith loc0 loc1 loc2 loc3 loc4 errs c ∧
     loc_constraints_aux loc0 loc1 loc2 loc3 loc4 errs c'
 
+def loc_order_constraints
+  (loc0 loc1 loc2 loc3 loc4 : BitVec 7) :=
+  loc0 <= loc1 ∧ loc1 <= loc2 ∧ loc2 <= loc3 ∧ loc3 <= loc4
+
 def loc_constraints
   (loc0 loc1 loc2 loc3 loc4 : BitVec 7)
   (errs : BitVec 72) :=
+  loc_order_constraints loc0 loc1 loc2 loc3 loc4 ∧
   loc_constraints_aux loc0 loc1 loc2 loc3 loc4 errs 71
 
 def row_parity_constraint_aux
@@ -80,7 +85,8 @@ lemma bb72_test
     parity_constraints errs /\
     stabilizer_constraints errs)
   := by
-  simp (maxSteps := 9999999) only [loc_constraints, loc_constraints_aux, loc_constraints_ith,
+  simp (maxSteps := 9999999) only [loc_constraints, loc_order_constraints,
+    loc_constraints_aux, loc_constraints_ith,
     Nat.lt_add_one, getElem!_pos, Nat.cast_ofNat, BitVec.ofNat_eq_ofNat, eq_iff_iff,
     Nat.reduceLT, Nat.cast_one, Nat.zero_lt_succ,
     Nat.cast_zero, parity_constraints, parity_constraints_aux, row_parity_constraint,
@@ -94,6 +100,6 @@ lemma bb72_test
     or_self, decide_not, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not,
     Bool.decide_or, Bool.or_eq_true,
     not_and, not_or, and_imp]
-  bv_check "bb72.lrat"
+  bv_check "BB72.lean-bb72_test-103-2.lrat"
 
 #print axioms bb72_test
